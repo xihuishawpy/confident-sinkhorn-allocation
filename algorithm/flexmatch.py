@@ -61,7 +61,7 @@ class FlexMatch(Pseudo_Labeling):
             Augmented X = augmented_X + X
             Augmented y = augmented_y + Y
         """
-        
+
         if self.IsMultiLabel==False:
             #go over each row (data point), only keep the argmax prob 
             # because we only allow a single data point to a single class
@@ -79,11 +79,11 @@ class FlexMatch(Pseudo_Labeling):
             temp=np.where(max_prob_matrix[:,cc]>self.upper_threshold)[0]
             countVector[cc]= len( temp )
         countVector_normalized=np.asarray(countVector)/np.max(countVector)
-        
+
 
         if upper_threshold is None:
             upper_threshold=self.upper_threshold
-            
+
 
         # assign labels if the prob > threshold ========================================================
         assigned_pseudo_labels=np.zeros((max_prob_matrix.shape[0],self.nClass)).astype(int)
@@ -95,7 +95,7 @@ class FlexMatch(Pseudo_Labeling):
 
             # obtain the maximum number of points can be assigned per class
             MaxPseudoPoint[cc]=self.get_max_pseudo_point(self.label_frequency[cc],current_iter)
-            
+
             idx_sorted = np.argsort( max_prob_matrix[:,cc])[::-1] # decreasing        
 
             temp_idx = np.where(max_prob_matrix[idx_sorted,cc] > flex_class_upper_thresh )[0]   
@@ -108,7 +108,7 @@ class FlexMatch(Pseudo_Labeling):
 
         if self.verbose:
             print("MaxPseudoPoint",MaxPseudoPoint)
-        
+
         # post-processing and augmenting the data into X and Y ==========================================
         return self.post_processing_and_augmentation(assigned_pseudo_labels,X,y)
 
