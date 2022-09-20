@@ -23,30 +23,33 @@ warnings.filterwarnings('ignore')
 def run_experiments(args, save_dir):
 
     out_file = args.output_filename
-    numTrials=args.numTrials  
+    numTrials=args.numTrials
     numIters=args.numIters
     upper_threshold=args.upper_threshold
     verbose=args.verbose
     dataset_name=args.dataset_name
-    IsMultiLabel=False # by default
-
-    # in our list of datasets: ['yeast','emotions'] are multi-label classification dataset
-    # the rest datasets are multiclassification
-    if dataset_name in ['yeast','emotions']: # multi-label
-        IsMultiLabel=True
-
+    IsMultiLabel = dataset_name in ['yeast','emotions']
     accuracy = []
 
     for tt in tqdm(range(numTrials)):
         
         np.random.seed(tt)
-       
-        # load the data        
-        if IsMultiLabel==False: # multiclassification
-            x_train,y_train, x_test, y_test, x_unlabeled=get_train_test_unlabeled(dataset_name,path_to_data='../all_data.pickle',random_state=tt)
-        else: # multi-label classification
-            x_train,y_train, x_test, y_test, x_unlabeled=get_train_test_unlabeled_for_multilabel(dataset_name,path_to_data='../all_data_multilabel.pickle',random_state=tt)
-        
+
+        # load the data
+        x_train, y_train, x_test, y_test, x_unlabeled = (
+            get_train_test_unlabeled_for_multilabel(
+                dataset_name,
+                path_to_data='../all_data_multilabel.pickle',
+                random_state=tt,
+            )
+            if IsMultiLabel
+            else get_train_test_unlabeled(
+                dataset_name,
+                path_to_data='../all_data.pickle',
+                random_state=tt,
+            )
+        )
+
         pseudo_labeller = FlexMatch(x_unlabeled,x_test,y_test, 
                 num_iters=numIters,
                 upper_threshold=upper_threshold,
@@ -54,16 +57,19 @@ def run_experiments(args, save_dir):
                 IsMultiLabel=IsMultiLabel
             )
         pseudo_labeller.fit(x_train, y_train)
-        
+
         accuracy.append(  append_acc_early_termination(pseudo_labeller.test_acc,numIters) )
 
 
     # print and pickle results
-    filename = os.path.join(save_dir, '{}_{}_{}_numIters_{}_numTrials_{}_threshold_{}.pkl'.format(out_file, pseudo_labeller.algorithm_name,dataset_name,\
-        numIters,numTrials,upper_threshold))
+    filename = os.path.join(
+        save_dir,
+        f'{out_file}_{pseudo_labeller.algorithm_name}_{dataset_name}_numIters_{numIters}_numTrials_{numTrials}_threshold_{upper_threshold}.pkl',
+    )
+
     print('\n* Trial summary: avgerage of accuracy per Pseudo iterations')
     print( np.mean( np.asarray(accuracy),axis=0))
-    print('\n* Saving to file {}'.format(filename))
+    print(f'\n* Saving to file {filename}')
     with open(filename, 'wb') as f:
         pickle.dump([accuracy], f)
         f.close()
@@ -75,7 +81,7 @@ def main(args):
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
 
-    save_path = save_dir + '/'  + '/'
+    save_path = f'{save_dir}//'
     if not os.path.exists(save_path):
         os.mkdir(save_path)
 

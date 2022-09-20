@@ -73,7 +73,7 @@ class UPS(Pseudo_Labeling):
             Augmented X = augmented_X + X
             Augmented y = augmented_y + Y
         """
-        
+
         if self.IsMultiLabel==False:
             #go over each row (data point), only keep the argmax prob 
             # because we only allow a single data point to a single class
@@ -83,27 +83,27 @@ class UPS(Pseudo_Labeling):
             # because a single data point can be assigned to multiple classes
             max_prob_matrix=pseudo_labels_prob
 
-            
+
         assigned_pseudo_labels=np.zeros((max_prob_matrix.shape[0],self.nClass)).astype(int)
 
         MaxPseudoPoint=[0]*self.nClass
         for cc in range(self.nClass): # loop over each class
 
             MaxPseudoPoint[cc]=self.get_max_pseudo_point(self.label_frequency[cc],current_iter)
-            
+
             idx_sorted = np.argsort( max_prob_matrix[:,cc])[::-1] # decreasing        
-        
+
             idx_within_prob = np.where( max_prob_matrix[idx_sorted,cc] > self.upper_threshold )[0]
             idx_within_prob_uncertainty = np.where( uncertainty_scores[idx_sorted[idx_within_prob],cc] < self.lower_threshold)[0]
-            
+
             # only select upto MaxPseudoPoint[cc] points
             labels_satisfied_threshold=idx_sorted[idx_within_prob_uncertainty][:MaxPseudoPoint[cc]]
-            
+
             assigned_pseudo_labels[labels_satisfied_threshold, cc]=1
 
         if self.verbose:
             print("MaxPseudoPoint",MaxPseudoPoint)
-        
+
         return self.post_processing_and_augmentation(assigned_pseudo_labels,X,y)
 
 

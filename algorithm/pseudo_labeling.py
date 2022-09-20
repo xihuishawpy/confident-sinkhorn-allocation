@@ -14,8 +14,8 @@ class Pseudo_Labeling(object):
     # this class will be inherited across other subclasses
     
     def __init__(self, unlabelled_data, x_test,y_test, num_iters=5,upper_threshold = 0.8, \
-            fraction_allocation=1,lower_threshold = None,num_XGB_models=0, \
-                 verbose = False,IsMultiLabel=False):
+                fraction_allocation=1,lower_threshold = None,num_XGB_models=0, \
+                     verbose = False,IsMultiLabel=False):
         """
         unlabelled_data      : [N x d] where N is the number of unlabeled data, d is the feature dimension
         x_test               :[N_test x d]
@@ -44,12 +44,13 @@ class Pseudo_Labeling(object):
 
 
         # this is the XGBoost model for multi-class classification
-        param = {}
-        param['booster'] = 'gbtree'
-        param['objective'] = 'binary:logistic'
-        param['verbosity'] = 0
-        param['silent'] = 1
-        param['seed'] = 0
+        param = {
+            'booster': 'gbtree',
+            'objective': 'binary:logistic',
+            'verbosity': 0,
+            'silent': 1,
+            'seed': 0,
+        }
 
         # create XGBoost instance with default hyper-parameters
         #xgb = XGBClassifier(**param,use_label_encoder=False)
@@ -64,12 +65,12 @@ class Pseudo_Labeling(object):
 
         if lower_threshold is not None:
             self.lower_threshold = lower_threshold # this lower threshold is used for UPS algorithm, not the vanilla Pseudo-labeling
-        
+
 
         # allow the pseudo-data is repeated, e.g., without removing them after each iteration        
         # create a list of all the indices 
         self.unlabelled_indices = list(range(unlabelled_data.shape[0]))      
-        
+
         self.selected_unlabelled_index=[]
 
         if self.verbose:
@@ -90,23 +91,23 @@ class Pseudo_Labeling(object):
                     'colsample_bytree': np.arange(0.4, 1.0, 0.05),
                     'colsample_bylevel': np.arange(0.4, 1.0, 0.05),
                     'n_estimators': [100, 200, 300, 500, 600, 700, 1000]}
-            
+
             self.XGBmodels_list=[0]*self.num_XGB_models
-            
+
             param_list=[0]*self.num_XGB_models
             for tt in range(self.num_XGB_models):
                 
                 param_list[tt]={}
-                
-                for key in params.keys():
-              
+
+                for key in params:
+
                     mychoice=np.random.choice(params[key])
-                
+
                     param_list[tt][key]=mychoice
                     param_list[tt]['verbosity'] = 0
                     param_list[tt]['silent'] = 1
                     param_list[tt]['seed'] = tt
-                    
+
                 #self.XGBmodels_list[tt] = XGBClassifier(**param_list[tt],use_label_encoder=False)
                 self.XGBmodels_list[tt] = self.get_XGB_model(param_list[tt])
 
@@ -156,7 +157,7 @@ class Pseudo_Labeling(object):
         Output:
             Given K the number of labels, it returns a vector of label frequency [1 x K]
         """
-        
+
 
         if self.IsMultiLabel==False:
             if len(self.num_augmented_per_class)>0:
@@ -168,13 +169,13 @@ class Pseudo_Labeling(object):
 
         if self.verbose:
             print("==label_frequency without adjustment", np.round(label_frequency,3))
-        
+
         # smooth the label frequency if the ratio between the max class / min class is significant >5
         # this smoothing is the implementation trick to prevent biased estimation given limited training data
         ratio=np.max(label_frequency)/np.min(label_frequency)
         if ratio>5:
             label_frequency=label_frequency/np.sum(label_frequency)+np.ones( self.nClass )*1.0/self.nClass
-    
+
         return label_frequency/np.sum(label_frequency)
 
     
@@ -240,12 +241,12 @@ class Pseudo_Labeling(object):
 
         sum_by_cols=np.sum(assigned_pseudo_labels,axis=1)            
         labels_satisfied_threshold = np.where(sum_by_cols>0)[0]
-        
+
         self.num_augmented_per_class.append( np.sum(assigned_pseudo_labels,axis=0).astype(int) )
-        
+
         if len(labels_satisfied_threshold) == 0: # no point is selected
             return X,y
-            
+
         self.selected_unlabelled_index += labels_satisfied_threshold.tolist()
 
         # augment the assigned labels to X and y ==============================================
@@ -254,7 +255,7 @@ class Pseudo_Labeling(object):
         if self.IsMultiLabel==False: # y is [N x 1] matrix
             # allow a single data point can be added into multiple 
             y = np.vstack(( np.argmax( assigned_pseudo_labels[labels_satisfied_threshold,:],axis=1).reshape(-1,1), np.array(y).reshape(-1,1)))  
-          
+
         else: # y is [N x L] matrix
             y = np.vstack((assigned_pseudo_labels[labels_satisfied_threshold,:], np.array(y)))
 
@@ -263,11 +264,11 @@ class Pseudo_Labeling(object):
             self.len_unlabels.append( len(self.unlabelled_data) )
             self.len_accepted_ttest.append( assigned_pseudo_labels.shape[0] ) 
             self.len_selected.append(  np.sum(self.num_augmented_per_class) )
-        
+
 
         # remove the selected data from unlabelled data
         self.unlabelled_data = np.delete(self.unlabelled_data, np.unique(labels_satisfied_threshold), 0)
-        
+
         return X,y
 
     def label_assignment_and_post_processing(self, pseudo_labels_prob,X,y, current_iter=0,upper_threshold=None):
@@ -284,7 +285,7 @@ class Pseudo_Labeling(object):
             Augmented X = augmented_X + X
             Augmented y = augmented_y + Y
         """
-        
+
         if self.IsMultiLabel==False:
             #go over each row (data point), only keep the argmax prob 
             # because we only allow a single data point to a single class
@@ -300,14 +301,14 @@ class Pseudo_Labeling(object):
 
         if 'CSA' in self.algorithm_name: # if using CSA, we dont use the upper threshold
             upper_threshold=0
-            
+
         assigned_pseudo_labels=np.zeros((max_prob_matrix.shape[0],self.nClass)).astype(int)
 
         MaxPseudoPoint=[0]*self.nClass
         for cc in range(self.nClass): # loop over each class
 
             MaxPseudoPoint[cc]=self.get_max_pseudo_point(self.label_frequency[cc],current_iter)
-            
+
             idx_sorted = np.argsort( max_prob_matrix[:,cc])[::-1] # decreasing        
 
             temp_idx = np.where(max_prob_matrix[idx_sorted,cc] > upper_threshold )[0]   
@@ -319,7 +320,7 @@ class Pseudo_Labeling(object):
 
         if self.verbose:
             print("MaxPseudoPoint",MaxPseudoPoint)
-        
+
         return self.post_processing_and_augmentation(assigned_pseudo_labels,X,y)
 
     
@@ -336,10 +337,7 @@ class Pseudo_Labeling(object):
         """
         
 
-        if self.IsMultiLabel==False:
-            return len(np.unique(y))
-        else:
-            return y.shape[1]
+        return len(np.unique(y)) if self.IsMultiLabel==False else y.shape[1]
         
 
 
